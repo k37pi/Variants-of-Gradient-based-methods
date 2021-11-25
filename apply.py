@@ -18,36 +18,36 @@ for i in dir(fn):
     print(i,"  ",type(getattr(fn,i)))
 
 
-methods = []
-for i in dir(dms):
-  if type(getattr(dms,i)) == 'function':
-  #avail_fns.append(i)
-    print(i,"  ",type(getattr(dms,i)))
+name = "freudroth"
 
-
-f_all = fn.beales
+f_all = fn.goldsteinprice
 f = f_all[0]
 xmin, xmax, xstep = f_all[2][0][0], f_all[2][0][1], .2
 ymin, ymax, ystep = f_all[2][1][0], f_all[2][1][1], .2
-bounds = asarray([[xmin, xmax], [ymin, ymax]])
+search = asarray([[xmin, xmax], [ymin, ymax]])
 
-x0 = np.array(bounds[:, 0] + rand(len(bounds)) * (bounds[:, 1] - bounds[:, 0]))#np.array([3.0,4.0])
+x0 = np.array(search[:, 0] + rand(len(search)) * (search[:, 1] - search[:, 0]))#np.array([3.0,4.0])
+#x0 = np.array([29.0,59.0])
+
 eps = 10**-5
 
-k, xk_gd = grad_descent(f,eps,"BT",x0,a=0.5,b=0.5,s=1)
-xk_nest = nesterov(f,bounds,K=100,tk=0.02,momentum=0.78)
-xk = adagrad(f,bounds,K=1000,tk=0.5)
+methods = [("Gradient",grad_descent(f,x0,eps,"BT",a=0.5,b=0.5,s=1))]
+methods.append(("Stochastic Gradient", sgd(f,x0,eps,search,"Constant",batch = 50,t=0.9,a=0.5,b=0.5,s=1)))
+methods.append(("Nesterov",nesterov(f,x0,eps,tk = 0.05, momentum = 0.9)))
+methods.append(("Adagrad", adagrad(f, x0, eps, tk=0.01)))
+methods.append(("Adam",adam(f, x0, eps, t = 0.02, beta1 = 0.8, beta2 = 0.99)))
 
+[print(methods[i][0]) for i in range(len(methods))] # Method names.
+[print(methods[i][1][0]) for i in range(len(methods))] # number of iterations per method.
+
+# Iterate paths 
 x0_ = x0.reshape(-1,1)
-x0_ = xk[0].reshape(-1,1)
+path = [np.array(methods[i][1][1]).T for i in range(len(methods))]
+len(path)
+[path[i].shape for i in range(len(path))]
 
-path = np.array(xk).T
-path.shape
-
-#xmin, xmax, xstep = -60, 10, .2
-#ymin, ymax, ystep = -6, 8, .2
+# Grid
 x, y = np.meshgrid(np.arange(xmin, xmax + xstep, xstep), np.arange(ymin, ymax + ystep, ystep))
-#z = fn.ackley(x,y)
 z = f(x,y)
 minima = np.array(f_all[1])
 minima_ =   minima.T
@@ -55,21 +55,25 @@ minima_ =   minima.T
 dz_dx = elementwise_grad(f, argnum=0)(x, y)
 dz_dy = elementwise_grad(f, argnum=1)(x, y)
 
+# colours
+col = ['k','r','g','b','y']
 
 # 2d lev curves with directions
 fig, ax = plt.subplots(figsize=(10, 6))
 
 ax.contour(x, y, z, levels=np.logspace(0, 5, 35), norm=LogNorm(), cmap=plt.cm.jet)
-ax.quiver(path[0,:-1], path[1,:-1], path[0,1:]-path[0,:-1], path[1,1:]-path[1,:-1], scale_units='xy', angles='xy', scale=1, color='k')
-#ax.plot(*xk, 'c+', markersize=18)
-ax.plot(*minima_, 'r*', markersize=18)
-ax.plot(*x0_, 'bo', markersize=9.7)
+#ax.contour(x, y, z, levels=50, cmap='jet')
+for i in range(len(path)):
+  ax.quiver(path[i][0,:-1], path[i][1,:-1], path[i][0,1:]-path[i][0,:-1], path[i][1,1:]-path[i][1,:-1], scale_units='xy', angles='xy', scale=1,zorder = 1, color=col[i],label = str(methods[i][0])+" "+ str(methods[i][1][0])) 
+  
+ax.plot(*minima_, 'm*', markersize=18,label = "Minima")
+ax.plot(*x0_, 'co', markersize=9.7,label = "x0")
 
 ax.set_xlabel('$x$')
 ax.set_ylabel('$y$')
+plt.title('Goldstein Price')
 
 ax.set_xlim((xmin, xmax))
-#ax.set_ylim((-6, 8))
 ax.set_ylim((ymin, ymax))
 
 plt.legend(loc='upper left')
@@ -79,11 +83,14 @@ plt.legend(loc='upper left')
 fig = plt.figure(figsize=(8, 5))
 ax = plt.axes(projection='3d', elev=50, azim=-50)
 
-ax.plot_surface(x, y, z, norm=LogNorm(), rstride=1, cstride=1, edgecolor='none', alpha=.8, cmap=plt.cm.jet)
-ax.quiver(path[0,:-1], path[1,:-1], f(*path[::,:-1]), 
-          path[0,1:]-path[0,:-1], path[1,1:]-path[1,:-1], f(*(path[::,1:]-path[::,:-1])), 
-          color='k')
-ax.plot(*minima_, f(*minima_), 'r*', markersize=10)
+ax.plot_surface(x, y, z,cmap=plt.cm.jet)# norm=LogNorm(), rstride=1, cstride=1, edgecolor='none', alpha=.8, cmap=plt.cm.jet)
+for i in range(len(path)):
+  ax.quiver(path[i][0,:-1], path[i][1,:-1], f(*path[i][::,:-1]), 
+          path[i][0,1:]-path[i][0,:-1], path[i][1,1:]-path[i][1,:-1], f(*(path[i][::,1:]-path[i][::,:-1])), 
+          color=col[i],label = str(methods[i][0])+" "+ str(methods[i][1][0]))
+
+ax.plot(*minima_, f(*minima_), 'm*', markersize=10)
+ax.plot(*x0_, f(*x0_), 'co', markersize=9.7,label = "x0")
 
 ax.set_xlabel('$x$')
 ax.set_ylabel('$y$')
@@ -91,36 +98,4 @@ ax.set_zlabel('$z$')
 
 ax.set_xlim((xmin, xmax))
 ax.set_ylim((ymin, ymax))
-
-# 2d anim -------
-fig, ax = plt.subplots(figsize=(10, 6))
-
-ax.contour(x, y, z, levels=np.logspace(0, 5, 35), norm=LogNorm(), cmap=plt.cm.jet)
-ax.plot(*minima_, 'r*', markersize=18)
-
-line, = ax.plot([], [], 'b', label='Grad. Desc.', lw=2)
-point, = ax.plot([], [], 'bo')
-
-ax.set_xlabel('$x$')
-ax.set_ylabel('$y$')
-
-ax.set_xlim((xmin, xmax))
-ax.set_ylim((ymin, ymax))
-
-ax.legend(loc='upper left')
-
-def init():
-    line.set_data([], [])
-    point.set_data([], [])
-    return line, point
-  
-def animate(i):
-    line.set_data(*path[::,:i])
-    point.set_data(*path[::,i-1:i])
-    return line, point 
-  
-anim = animation.FuncAnimation(fig, animate, init_func=init,
-                               frames=path.shape[1], interval=60, 
-                               repeat_delay=5, blit=True)  
-
-HTML(anim.to_html5_video())
+plt.legend(loc='upper left')
