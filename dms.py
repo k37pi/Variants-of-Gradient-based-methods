@@ -49,7 +49,7 @@ def sgd(f,x0,eps,search,lin_srch,batch = 1,t=0.9,a=0.5,b=0.5,s=1):
   grad = grad/batch 
   fun_val = f(*x0)
 
-  while (norm(*grad) > eps) & (k < 10000):
+  while (norm(*grad) > eps) & (k < 100):
     k = k + 1
     if lin_srch == "Constant":
       x0 = x0 - t*grad       
@@ -92,25 +92,25 @@ def nesterov(f, x0, eps, tk=0.01, momentum=0.8):
 def adagrad(f, x0, eps, tk=0.01):
   xk = [x0]
   # 0 sum
-  sq_grad_sums = 0
+  grad2_sum = 0
   k = 1
   grad = np.array((elementwise_grad(f, argnum=0)(*np.array(x0,dtype=float)),(elementwise_grad(f, argnum=1)(*np.array(x0,dtype=float)))),dtype = float)
-  sq_grad_sums = sq_grad_sums + grad**2.0
-  alpha = tk / (1e-8 + np.sqrt(sq_grad_sums))
+  grad2_sum = grad2_sum + grad**2.0
+  alpha = tk / (1e-8 + np.sqrt(grad2_sum))
   x0 = x0 - alpha * grad
   xk.append(x0)
     
   while (norm(*((xk[k]-xk[k-1]))) > eps) & (k < 10000): 
     k = k+1
     grad = np.array((elementwise_grad(f, argnum=0)(*np.array(x0,dtype=float)),(elementwise_grad(f, argnum=1)(*np.array(x0,dtype=float)))),dtype = float)
-    sq_grad_sums = sq_grad_sums+ grad**2.0
-    alpha = tk / (1e-8 + np.sqrt(sq_grad_sums))
+    grad2_sum = grad2_sum+ grad**2.0
+    alpha = tk / (1e-8 + np.sqrt(grad2_sum))
     x0 = x0 - alpha * grad
     xk.append(x0)
     print(k)
   return [k,xk]
 
-def adam(f, x0, eps, alpha = 0.02, beta1 = 0.8, beta2 = 0.9):
+def adam(f, x0, eps, t = 0.02, beta1 = 0.8, beta2 = 0.9):
   xk = [x0]
   m = 0
   v = 0
@@ -118,18 +118,19 @@ def adam(f, x0, eps, alpha = 0.02, beta1 = 0.8, beta2 = 0.9):
   grad = np.array((elementwise_grad(f, argnum=0)(*np.array(x0,dtype=float)),(elementwise_grad(f, argnum=1)(*np.array(x0,dtype=float)))),dtype = float)
   m = beta1 * m + (1.0 - beta1) * grad
   v = beta2 * v + (1.0 - beta2) * grad**2
-  mhat = m / (1.0 - beta1**(k+1))
-  vhat = v / (1.0 - beta2**(k+1))
-  x0 = x0 - alpha * mhat / (np.sqrt(vhat) + 1e-8)
+  mhat = m / (1.0 - beta1**(k))
+  vhat = v / (1.0 - beta2**(k))
+  x0 = x0 - t * mhat / (np.sqrt(vhat) + 1e-8)
   xk.append(x0)
-  while (norm(*grad) > eps) & (k < 10000): 
+  while (norm(*((xk[k]-xk[k-1]))) > eps) & (k < 10000): 
+  #while (norm(*grad) > eps) & (k < 10000): 
     k = k+1
     grad = np.array((elementwise_grad(f, argnum=0)(*np.array(x0,dtype=float)),(elementwise_grad(f, argnum=1)(*np.array(x0,dtype=float)))),dtype = float)
     m = beta1 * m + (1.0 - beta1) * grad
     v = beta2 * v + (1.0 - beta2) * grad**2
-    mhat = m / (1.0 - beta1**(k+1))
-    vhat = v / (1.0 - beta2**(k+1))
-    x0 = x0 - alpha * mhat / (np.sqrt(vhat) + 1e-8)
+    mhat = m / (1.0 - beta1**(k))
+    vhat = v / (1.0 - beta2**(k))
+    x0 = x0 - t* mhat / (np.sqrt(vhat) + 1e-8)
     xk.append(x0)
     print(k)
   return [k,xk]
